@@ -1,15 +1,23 @@
 
 # Mara - A Gopher Server
 
-This is a Terrible Idea.
+Mara is a simple Gopher server written in Jai. It's written for no apparent
+reason.
 
-First hack session goals:
+A Mara is a bunny-like cavi from the Patagonian plains. It's cute!
+
+This compiles fine on Jai Beta 016.
+
+
+## This is a Terrible Idea
+
+This is a Terrible Idea, to hack together a Gopher server. Done on 2020-05-11.
 
  [x] Make a Gopher server
  [x] Write it in Jai
- [x] Less than 374 lines of code
+ [x] Less than 374 lines of code (it's since then bloated a bit)
 
-TODO:
+## TODO:
 
  [ ] Make Gopher server multi-threaded
  [ ] Support Gopher item type 7
