@@ -232,9 +232,12 @@ send_gophermap :: (server: *GopherServer, path: string = "") {
                 selector := parts[1];
                 if parts.count > 2 {
                     host = parts[2];
-                    port = parse_int(*parts[3], u16);
                 } else {
                     host = server.server_host;
+                }
+                if parts.count > 3 {
+                    port = parse_int(*parts[3], u16);
+                } else {
                     port = server.server_port;
                 }
                 if begins_with(selector, "/") || host != server.server_host || begins_with(selector, "URL:") {
