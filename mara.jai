@@ -301,7 +301,26 @@ guess_filetype :: (using server: *GopherServer) -> string {
 }
 
 url_redirect :: (using server: *GopherServer) {
+    if !begins_with(req_selector, "http://") &&
+       !begins_with(req_selector, "https://") &&
+       !begins_with(req_selector, "ftp://") &&
+       !begins_with(req_selector, "mailto://") &&
+       !begins_with(req_selector, "irc://") {
+        send_error(server, "Unknown protocol on HTTP redirect.");
+        return;
+    }
+    wt :: (str: string, args: ..Any) #expand {
+        `stat_bytes_sent += write(`client_socket, str, ..args);
+    }
 
+	wt("<html>\n<head>\n");
+	wt("  <meta http-equiv=\"Refresh\" content=\"1;URL=%\">\n", req_selector);
+	wt("  <meta http-equiv=\"Content-Type\" content=\"text/html;charset=iso-8859-1\">\n");
+	wt("  <title>Redirecting</title>\n");
+	wt("</head>\n<body>\n");
+	wt("  <h1>Redirecting</h1>\n");
+    wt("  Redirecting to <a href=\"%\">%</a>.\n", req_selector, req_selector);
+	wt("</body>\n</html>\n");
 }
 
 handle_request :: (using server: *GopherServer) {
@@ -317,6 +336,7 @@ handle_request :: (using server: *GopherServer) {
 
     if begins_with(req_selector, "URL:") {
         req_filetype = TYPE_HTML;
+        req_selector.data += 4; // Fast forward over "URL:"
         url_redirect(server);
         return;
     }
@@ -377,7 +397,6 @@ start_server :: (using server: *GopherServer) {
         server.stat_requests += 1;
         handle_request(server);
 
-        free(server.req_realpath);
         close(server.client_socket);
     }
 }

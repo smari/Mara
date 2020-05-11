@@ -14,7 +14,7 @@ TODO:
  [ ] Make Gopher server multi-threaded
  [ ] Support Gopher item type 7
  [x] Support basic HTTP queries
- [ ] Support hURL: redirects
+ [x] Support hURL: redirects
  [ ] Support headers and footers
  [ ] Support dates
  [ ] Support magic
