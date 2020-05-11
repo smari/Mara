@@ -353,6 +353,7 @@ send_stats :: (using server: *GopherServer) {
     send_line(server, tprint("i % Gopher Server v%", SERVER_NAME, SERVER_VERSION));
     send_line(server, "i  ");
     send_line(server, "i  ");
+    send_line(server, tprint("iHostname        : %", server_host));
     send_line(server, tprint("iRequests handled: %", stat_requests));
     send_line(server, tprint("iBytes sent      : %", stat_bytes_sent));
     send_line(server, tprint("iBytes received  : %", stat_bytes_received));
