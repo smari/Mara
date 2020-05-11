@@ -275,16 +275,13 @@ send_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
                 if parts.count < 2 { send_line(server, name, TYPE_INFO); continue; }
                 name = parts[0];
                 selector := parts[1];
-                if parts.count > 2 {
-                    host = parts[2];
-                } else {
-                    host = server.server_host;
-                }
-                if parts.count > 3 {
-                    port = parse_int(*parts[3], u16);
-                } else {
-                    port = server.server_port;
-                }
+
+                if parts.count > 2  host = parts[2];
+                else                host = server.server_host;
+
+                if parts.count > 3  port = parse_int(*parts[3], u16);
+                else                port = server.server_port;
+
                 if begins_with(selector, "/") || host != server.server_host || begins_with(selector, "URL:") {
                     server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3\t%4\t%5\r\n", type, name, selector, host, port);
                 } else { // Relative resource:
