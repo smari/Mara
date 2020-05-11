@@ -1,6 +1,7 @@
 // Mara: A Gopher Server.
 #import "Basic";
 #import "POSIX";
+#import "Process";
 #import "Socket";
 #import "String";
 #import "File";
@@ -13,6 +14,7 @@ SERVER_NUM_CONNECTIONS :: 5;
 
 TRIM_CHARS      :: " \t\r\n";
 PASSWD_MIN_UID  :: 100;
+BUF_MAX :: 1000;
 
 TYPE_TEXT   :: "0";
 TYPE_MENU   :: "1";
@@ -107,6 +109,20 @@ write :: (fd: s32, buf: string) -> s64 {
     return write(fd, buf.data, xx buf.count);
 }
 
+read_line :: (fd: s32) -> string {
+    buf : string;
+    buf.data = alloc(BUF_MAX);
+    buf.count = BUF_MAX;
+    view := buf;
+    while true {
+        read(fd, *view.data, 1);
+        buf.count = (view.data-buf.data);
+        if buf.count >= BUF_MAX return buf;
+        if view.data[0] == #char "\n" return buf;
+    }
+    return buf;
+}
+
 notice :: (msg: string, args: ..Any) {
     if server.debug {
         msgst := tprint(msg, ..args);
@@ -146,15 +162,16 @@ send_userlist :: (using server: *GopherServer) {
     setpwent();
     users : [..]User;
     dir: stat_t;
+
     while true {
         pwd := getpwent();
         if !pwd break;
 		/* Skip too small uids */
-		if (pwd.pw_uid < PASSWD_MIN_UID) continue;
+		if pwd.pw_uid < PASSWD_MIN_UID continue;
 
 		/* Look for a world-readable user-owned ~/public_gopher */
 		temp := tprint("%/%", to_string(pwd.pw_dir), user_dir);
-		if (stat(temp_c_string(temp), *dir) != 0) continue;
+		if stat(temp_c_string(temp), *dir) != 0 continue;
 		if dir.st_mode & S_IROTH == 0 continue;
 		if dir.st_uid != pwd.pw_uid continue;
 
@@ -171,6 +188,7 @@ send_userlist :: (using server: *GopherServer) {
     for user:users {
         send_line(server, tprint("%", user.username), TYPE_MENU, tprint("/~%/", user.username));
     }
+    array_reset(*users);
 }
 
 send_line :: (using server: *GopherServer, line: string, _type: string = "", _selector: string = "") {
@@ -184,30 +202,53 @@ send_error :: (using server: *GopherServer, errormsg: string = "Unknown error") 
     server.stat_bytes_sent += write(client_socket, "3%\tTITLE\t%\t%\r\n", errormsg, server_host, server_port);
 }
 
-send_gophermap :: (server: *GopherServer, path: string = "") {
-    gophermap := join(server.req_realpath, "/", server.map_file);
-    defer free(gophermap);
-    if !file_exists(gophermap) {
-        warning("Could not serve index: file not found.");
-        send_error(server, "Index not found.");
-        return;
+send_exec_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
+    /*
+    lines: [..]string;
+    print("Doing the = fun!\n");
+    fp := popen(temp_c_string(gophermap), temp_c_string("r"));
+    while true {
+        line := read_line(xx fp);
+        if !line break;
+        array_add(*lines, line);
+        break;
     }
-    notice("Client requested index. Reading from %", gophermap);
+    pclose(fp);
+    */
+    warning("Executable gophermaps don't work yet.");
+}
+
+send_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
+    if depth > 10 return;
+    lines: []string;
+
+    if !file_exists(gophermap) {
+        if server.opt_exec {
+            send_exec_gophermap(server, gophermap, depth+1);
+        } else {
+            warning("Could not serve index: file not found.");
+            send_error(server, "Index not found.");
+            return;
+        }
+    }
 
     stats: stat_t;
     ret := stat(temp_c_string(server.req_realpath), *stats);
     if stats.st_mode & S_IXOTH && server.opt_exec {
+        // Our gophermap is an executable!
         error("No support for executable gophermaps yet.");
     }
 
     buf, success := read_entire_file(gophermap);
+    notice("Client requested index. Reading from %", gophermap);
+
     defer free(buf);
     if !success {
         notice("Error reading file %: %", gophermap, get_error());
         send_error(server, "Internal error.");
         return;
     }
-    lines := split(buf, "\n");
+    lines = split(buf, "\n");
     defer array_reset(*lines);
 
     server.stat_maps_served += 1;
@@ -221,6 +262,10 @@ send_gophermap :: (server: *GopherServer, path: string = "") {
             case "*"; return;
             case "."; return;
             case "~"; send_userlist(server); continue;
+            case "="; {
+                send_gophermap(server, name, depth+1);
+                continue;
+            }
             case TYPE_TITLE; send_line(server, name, type);
             case; {
                 host: string;
@@ -415,7 +460,10 @@ handle_request :: (using server: *GopherServer) {
 
     if !file_exists(req_realpath) { send_error(server, "File not found"); return; }
     if req_filetype == {
-        case TYPE_MENU;   send_gophermap(server, req_realpath);
+        case TYPE_MENU;
+            gophermap := join(server.req_realpath, "/", server.map_file);
+            send_gophermap(server, gophermap);
+            free(gophermap);
         case; send_file(server);
     }
 }
@@ -453,7 +501,6 @@ start_server :: (using server: *GopherServer) {
         server.client_socket = client_socket;
         notice("Client connected from %", to_string(address));
 
-        BUF_MAX :: 1000;
         request : [BUF_MAX]u8;
         server.stat_bytes_received += read(client_socket, *request, BUF_MAX);
         server.req_selector = trim(to_string(request), TRIM_CHARS);
