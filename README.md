@@ -13,25 +13,25 @@ This compiles fine on Jai Beta 016.
 
 This is a Terrible Idea, to hack together a Gopher server. Done on 2020-05-11.
 
- [x] Make a Gopher server
- [x] Write it in Jai
- [x] Less than 374 lines of code (it's since then bloated a bit)
+ - [x] Make a Gopher server
+ - [x] Write it in Jai
+ - [x] Less than 374 lines of code (it's since then bloated a bit)
 
 ## TODO:
 
- [ ] Make Gopher server multi-threaded
- [ ] Support Gopher item type 7
- [x] Support basic HTTP queries
- [x] Support hURL: redirects
- [ ] Support headers and footers
- [ ] Support dates
- [ ] Support magic
- [ ] Support vhosts
- [ ] Support syslog
- [ ] Support proxying
- [ ] Support executable gophermaps
- [x] Support personal spaces
- [ ] Handle server names better
- [ ] Report types better
- [ ] Be feature-equivalent to Gophernicus
- [ ] Check for memory leaks
+ - [ ] Make Gopher server multi-threaded
+ - [ ] Support Gopher item type 7
+ - [x] Support basic HTTP queries
+ - [x] Support hURL: redirects
+ - [ ] Support headers and footers
+ - [ ] Support dates
+ - [ ] Support magic
+ - [ ] Support vhosts
+ - [ ] Support syslog
+ - [ ] Support proxying
+ - [ ] Support executable gophermaps
+ - [x] Support personal spaces
+ - [ ] Handle server names better
+ - [ ] Report types better
+ - [ ] Be feature-equivalent to Gophernicus
+ - [ ] Check for memory leaks
