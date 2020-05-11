@@ -20,6 +20,7 @@ This is a Terrible Idea, to hack together a Gopher server. Done on 2020-05-11.
 ## TODO:
 
  - [ ] Make Gopher server multi-threaded
+ - [ ] Automatic menu making if no gophermap
  - [ ] Support Gopher item type 7
  - [x] Support basic HTTP queries
  - [x] Support hURL: redirects
@@ -27,7 +28,7 @@ This is a Terrible Idea, to hack together a Gopher server. Done on 2020-05-11.
  - [ ] Support dates
  - [ ] Support magic
  - [ ] Support vhosts
- - [ ] Support syslog
+ - [ ] Use syslog
  - [ ] Support proxying
  - [ ] Support executable gophermaps
  - [x] Support personal spaces
