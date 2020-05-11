@@ -29,6 +29,11 @@ TYPE_SOUND  :: "s";
 TYPE_VIDEO  :: ";";
 TYPE_TITLE  :: "!";
 
+GopherProtocol :: enum {
+    PROTO_GOPHER;
+    PROTO_HTTP;
+}
+
 GopherServer :: struct {
     stat_requests:       int;
     stat_bytes_sent:     int;
@@ -45,6 +50,7 @@ GopherServer :: struct {
     req_remote_addr:     string;
     req_filetype:        string;
     req_filesize:        int;
+    req_protocol:        GopherProtocol;
 
     client_socket:       s32;
 
@@ -83,7 +89,7 @@ GopherServer :: struct {
     opt_proxy:           bool   = false; // Unimplemented
     opt_exec:            bool   = false;
     opt_personal_spaces: bool   = false; // Unimplemented
-    opt_http_requests:   bool   = false; // Unimplemented
+    opt_http_requests:   bool   = true;
     debug:               bool   = true;
 };
 
@@ -294,20 +300,46 @@ guess_filetype :: (using server: *GopherServer) -> string {
     return default_filetype;
 }
 
+url_redirect :: (using server: *GopherServer) {
+
+}
+
 handle_request :: (using server: *GopherServer) {
     if opt_caps && req_selector == "/caps.txt" {
         send_caps(server);
-    } else if opt_stats && req_selector == "/server_stats" {
-        send_stats(server);
-    } else {
-        notice("Client requested '%'", req_selector);
-        req_filetype = guess_filetype(server);
-        if !file_exists(req_realpath) { send_error(server, "File not found"); return; }
-        if req_filetype == {
-            case TYPE_MENU;   send_gophermap(server, req_realpath);
-            case; send_file(server);
-        }
+        return;
     }
+
+    if opt_stats && req_selector == "/server_stats" {
+        send_stats(server);
+        return;
+    }
+
+    if begins_with(req_selector, "URL:") {
+        req_filetype = TYPE_HTML;
+        url_redirect(server);
+        return;
+    }
+
+    if opt_http_requests && (begins_with(req_selector, "GET ") || begins_with(req_selector, "POST ")) {
+        req_protocol = .PROTO_HTTP;
+        // TODO: When lots of things break, it'll be because this API became sane:
+        req_selector = find_character_from_left_v2(req_selector, #char " ");
+        req_selector = find_character_from_left(req_selector, #char " ");
+        notice("Got HTTP request.");
+    }
+
+    notice("Client requested '%'", req_selector);
+    req_filetype = guess_filetype(server);
+    if !file_exists(req_realpath) { send_error(server, "File not found"); return; }
+    if req_filetype == {
+        case TYPE_MENU;   send_gophermap(server, req_realpath);
+        case; send_file(server);
+    }
+}
+
+new_client :: (using server: *GopherServer) {
+    req_protocol = .PROTO_GOPHER;
 }
 
 start_server :: (using server: *GopherServer) {
@@ -333,6 +365,7 @@ start_server :: (using server: *GopherServer) {
     notice("Server running on %:%.", server.server_host, server.server_port);
 
     while true {
+        new_client(server);
         client_socket, address := accept(server_socket);
         server.client_socket = client_socket;
         notice("Client connected from %", to_string(address));

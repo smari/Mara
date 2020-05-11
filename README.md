@@ -13,7 +13,8 @@ TODO:
 
  [ ] Make Gopher server multi-threaded
  [ ] Support Gopher item type 7
- [ ] Support basic HTTP queries
+ [x] Support basic HTTP queries
+ [ ] Support hURL: redirects
  [ ] Support headers and footers
  [ ] Support dates
  [ ] Support magic
@@ -26,4 +27,3 @@ TODO:
  [ ] Report types better
  [ ] Be feature-equivalent to Gophernicus
  [ ] Check for memory leaks
-
