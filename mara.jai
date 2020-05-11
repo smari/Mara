@@ -64,8 +64,8 @@ GopherServer :: struct {
     server_platform:     string = "Linux";
     server_admin:        string = "";
     server_root:         string = "gopherroot/";
-    server_host_default: string;
-    server_host:         string = "0.0.0.0";
+    server_host:         string;
+    server_listen:       string = "0.0.0.0";
     server_port:         u16    = 70;
 
     session_timeout:     int    = 1600;
@@ -237,7 +237,7 @@ send_gophermap :: (server: *GopherServer, path: string = "") {
                     host = server.server_host;
                     port = server.server_port;
                 }
-                if selector == "/" || host != server.server_host || begins_with(selector, "URL:") {
+                if begins_with(selector, "/") || host != server.server_host || begins_with(selector, "URL:") {
                     server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3\t%4\t%5\r\n", type, name, selector, host, port);
                 } else { // Relative resource:
                     selector = trim_left(selector, "/");
@@ -426,14 +426,15 @@ start_server :: (using server: *GopherServer) {
     defer free(server_root);
     server_socket := socket(AF_INET, SOCK_STREAM, 0);
     if server_socket < 0 error("Couldn't open socket!");
+
     optval := 1;
     setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, *optval, size_of(socklen_t));
 
-    if bind(server_socket, server_host, server_port) < 0 {
+    if bind(server_socket, server_listen, server_port) < 0 {
         err := errno();
         if err == {
-            case EACCES; error("Attempting to listen on %:% without superuser privileges.", server_host, server_port);
-            case EADDRINUSE; error("Address in use: %:%.", server_host, server_port);
+            case EACCES; error("Attempting to listen on %:% without superuser privileges.", server_listen, server_port);
+            case EADDRINUSE; error("Address in use: %:%.", server_listen, server_port);
             case; error("Unknown error % when binding.", err);
         }
     }
@@ -441,7 +442,7 @@ start_server :: (using server: *GopherServer) {
     if listen(server_socket, SERVER_NUM_CONNECTIONS) < 0 error("Error listening.");
     defer close(server_socket);
 
-    notice("Server running on %:%.", server.server_host, server.server_port);
+    notice("Server running on %:%.", server.server_listen, server.server_port);
 
     while true {
         new_client(server);
