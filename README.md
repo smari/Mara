@@ -22,7 +22,7 @@ TODO:
  [ ] Support syslog
  [ ] Support proxying
  [ ] Support executable gophermaps
- [ ] Support personal spaces
+ [x] Support personal spaces
  [ ] Handle server names better
  [ ] Report types better
  [ ] Be feature-equivalent to Gophernicus

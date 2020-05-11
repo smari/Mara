@@ -5,12 +5,14 @@
 #import "String";
 #import "File";
 #import "File_Utilities";
+#import "Sort";
 
 SERVER_NAME     :: "Mara";
 SERVER_VERSION  :: "0.0.1";
 SERVER_NUM_CONNECTIONS :: 5;
 
 TRIM_CHARS      :: " \t\r\n";
+PASSWD_MIN_UID  :: 100;
 
 TYPE_TEXT   :: "0";
 TYPE_MENU   :: "1";
@@ -71,6 +73,7 @@ GopherServer :: struct {
     default_filetype:    string = TYPE_TEXT;
     map_file:            string = "gophermap";
     tag_file:            string = "gophertag";
+    user_dir:            string = "public_gopher";
 
     opt_parent:          bool   = false; // Unimplemented
     opt_header:          bool   = false; // Unimplemented
@@ -88,7 +91,7 @@ GopherServer :: struct {
     opt_root:            bool   = true;
     opt_proxy:           bool   = false; // Unimplemented
     opt_exec:            bool   = false;
-    opt_personal_spaces: bool   = false; // Unimplemented
+    opt_personal_spaces: bool   = true;
     opt_http_requests:   bool   = true;
     debug:               bool   = true;
 };
@@ -132,8 +135,46 @@ get_error :: () -> string {
     }
 }
 
-send_line :: (using server: *GopherServer, line: string, _type: string = "") {
-    selector := ""; type := _type;
+User :: struct {
+    username:   string;
+    mtime:      s64;
+}
+
+send_userlist :: (using server: *GopherServer) {
+    if !opt_personal_spaces return;
+
+    setpwent();
+    users : [..]User;
+    dir: stat_t;
+    while true {
+        pwd := getpwent();
+        if !pwd break;
+		/* Skip too small uids */
+		if (pwd.pw_uid < PASSWD_MIN_UID) continue;
+
+		/* Look for a world-readable user-owned ~/public_gopher */
+		temp := tprint("%/%", to_string(pwd.pw_dir), user_dir);
+		if (stat(temp_c_string(temp), *dir) != 0) continue;
+		if dir.st_mode & S_IROTH == 0 continue;
+		if dir.st_uid != pwd.pw_uid continue;
+
+		/* Found one */
+        user : User;
+        user.username = copy_string(to_string(pwd.pw_name));
+        user.mtime = dir.st_mtime.tv_sec;
+        array_add(*users, user);
+	}
+    if opt_date quick_sort(users, a => a.mtime);
+    else quick_sort(users, (a, b) => compare_strings(a.username, b.username));
+
+    notice("A total of % users have % directories.", users.count, user_dir);
+    for user:users {
+        send_line(server, tprint("%", user.username), TYPE_MENU, tprint("/~%/", user.username));
+    }
+}
+
+send_line :: (using server: *GopherServer, line: string, _type: string = "", _selector: string = "") {
+    selector := _selector; type := _type;
     if type == TYPE_TITLE { selector = "TITLE"; type = TYPE_INFO; }
     assert(type.count <= 1);
     server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3\t%4\t%5\r\n", type, line, selector, server_host, server_port);
@@ -175,31 +216,33 @@ send_gophermap :: (server: *GopherServer, path: string = "") {
         if line.count == 0 continue;
         type := line; type.count = 1;
         name := line; advance(*name);
-        if type == "#" continue;
-        else if type == "*" return;
-        else if type == "." return;
-        // else if type == "~" && opt_personal_spaces send_userlist(server);
-        else if type == TYPE_TITLE send_line(server, name, type);
-        else {
-            host: string;
-            port: u16;
-            parts := split(name, "\t");
-            defer array_reset(*parts);
-            if parts.count < 2 { send_line(server, name, TYPE_INFO); continue; }
-            name = parts[0];
-            selector := parts[1];
-            if parts.count > 2 {
-                host = parts[2];
-                port = parse_int(*parts[3], u16);
-            } else {
-                host = server.server_host;
-                port = server.server_port;
-            }
-            if selector == "/" || host != server.server_host || begins_with(selector, "URL:") {
-                server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3\t%4\t%5\r\n", type, name, selector, host, port);
-            } else { // Relative resource:
-                selector = trim_left(selector, "/");
-                server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3/%4\t%5\t%6\r\n", type, name, server.req_selector, selector, host, port);
+        if type == {
+            case "#"; continue;
+            case "*"; return;
+            case "."; return;
+            case "~"; send_userlist(server); continue;
+            case TYPE_TITLE; send_line(server, name, type);
+            case; {
+                host: string;
+                port: u16;
+                parts := split(name, "\t");
+                defer array_reset(*parts);
+                if parts.count < 2 { send_line(server, name, TYPE_INFO); continue; }
+                name = parts[0];
+                selector := parts[1];
+                if parts.count > 2 {
+                    host = parts[2];
+                    port = parse_int(*parts[3], u16);
+                } else {
+                    host = server.server_host;
+                    port = server.server_port;
+                }
+                if selector == "/" || host != server.server_host || begins_with(selector, "URL:") {
+                    server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3\t%4\t%5\r\n", type, name, selector, host, port);
+                } else { // Relative resource:
+                    selector = trim_left(selector, "/");
+                    server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3/%4\t%5\t%6\r\n", type, name, server.req_selector, selector, host, port);
+                }
             }
         }
     }
@@ -277,7 +320,6 @@ guess_filetype :: (using server: *GopherServer) -> string {
         for n:needles { if ends_with(`req_selector, n) return returns; }
     }
     // Check if menu:
-    req_realpath = join(server_root, req_selector);
     if ends_with(req_selector, "/") { return TYPE_MENU; }
     stats: stat_t;
     ret := stat(temp_c_string(req_realpath), *stats);
@@ -350,7 +392,24 @@ handle_request :: (using server: *GopherServer) {
     }
 
     notice("Client requested '%'", req_selector);
+    if opt_personal_spaces && user_dir != "" && begins_with(req_selector, "/~") {
+        // Map ~user to $HOME/public_gopher
+        path := req_selector;
+        advance(*path, 2);
+        username := find_character_from_left(path, #char "/");
+        path = find_character_from_left_v2(path, #char "/");
+        pwd := getpwnam(temp_c_string(username));
+        // Unlike Gophernicus, we won't leak info on user existence.
+        if !pwd || pwd.pw_uid < PASSWD_MIN_UID { send_error(server, "File not found"); return; }
+
+        req_realpath = join(to_string(pwd.pw_dir), "/", user_dir, path);
+        notice("Resolving % to %", req_selector, req_realpath);
+    } else {
+        req_realpath = join(server_root, req_selector);
+    }
+
     req_filetype = guess_filetype(server);
+
     if !file_exists(req_realpath) { send_error(server, "File not found"); return; }
     if req_filetype == {
         case TYPE_MENU;   send_gophermap(server, req_realpath);
@@ -426,6 +485,7 @@ main :: () {
             case "-nc"; server.opt_magic = false;
             case "-na"; server.opt_caps = false;
             case "-nx"; server.opt_exec = false;
+            case "-nu"; server.opt_personal_spaces = false;
             case "-nS"; server.opt_stats = false;
             case "-d"; server.debug = true;
             case; print("Unknown parameter %", args[idx]);
