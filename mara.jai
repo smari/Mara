@@ -95,6 +95,11 @@ GopherServer :: struct {
 
 server : GopherServer;
 
+wt :: (str: string, args: ..Any) #expand {
+    // A useful macro we use in a few places where we're dumping irregular text.
+    `stat_bytes_sent += write(`client_socket, str, ..args);
+}
+
 write :: (fd: s32, buf: string, args: ..Any) -> s64 {
     tmp := tprint(buf, ..args);
     return write(fd, tmp.data, xx tmp.count);
@@ -181,16 +186,21 @@ send_userlist :: (using server: *GopherServer) {
 
     notice("A total of % users have % directories.", users.count, user_dir);
     for user:users {
-        send_line(server, tprint("%", user.username), TYPE_MENU, tprint("/~%/", user.username));
+        send_line(server, TYPE_MENU, tprint("/~%/", user.username), "%", user.username);
     }
     array_reset(*users);
 }
 
-send_line :: (using server: *GopherServer, line: string, _type: string = "", _selector: string = "") {
+send_line :: (using server: *GopherServer, _type: string = "", _selector: string = "", line: string, args: ..Any) {
     selector := _selector; type := _type;
     if type == TYPE_TITLE { selector = "TITLE"; type = TYPE_INFO; }
     assert(type.count <= 1);
-    server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3\t%4\t%5\r\n", type, line, selector, server_host, server_port);
+    if args.count > 0 {
+        fmt := tprint(line, ..args);
+        stat_bytes_sent += write(client_socket, "%1%2\t%3\t%4\t%5\r\n", type, fmt, selector, server_host, server_port);
+    } else {
+        stat_bytes_sent += write(client_socket, "%1%2\t%3\t%4\t%5\r\n", type, line, selector, server_host, server_port);
+    }
 }
 
 send_error :: (using server: *GopherServer, errormsg: string = "Unknown error") {
@@ -261,13 +271,13 @@ send_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
                 send_gophermap(server, name, depth+1);
                 continue;
             }
-            case TYPE_TITLE; send_line(server, name, type);
+            case TYPE_TITLE; send_line(server, type, line=name);
             case; {
                 host: string;
                 port: u16;
                 parts := split(name, "\t");
                 defer array_reset(*parts);
-                if parts.count < 2 { send_line(server, name, TYPE_INFO); continue; }
+                if parts.count < 2 { send_line(server, TYPE_INFO, line=name); continue; }
                 name = parts[0];
                 selector := parts[1];
 
@@ -312,9 +322,6 @@ send_file :: (server: *GopherServer) {
 }
 
 send_caps :: (using server: *GopherServer) {
-    wt :: (str: string, args: ..Any) #expand {
-        `stat_bytes_sent += write(`client_socket, str, ..args);
-    }
     wt("CAPS\r\n\r\n");
     wt("##\r\n");
     wt("## This is an automatically generated caps file.\r\n");
@@ -341,19 +348,19 @@ send_caps :: (using server: *GopherServer) {
 }
 
 send_stats :: (using server: *GopherServer) {
-    send_line(server, "i    /\\/\\   __ _ _ __ __ _ ");
-    send_line(server, "i   /    \\ / _` | '__/ _` |");
-    send_line(server, "i  / /\\/\\ \\ (_| | | | (_| |");
-    send_line(server, "i  \\/    \\/\\__,_|_|  \\__,_|");
-    send_line(server, tprint("i % Gopher Server v%", SERVER_NAME, SERVER_VERSION));
-    send_line(server, "i  ");
-    send_line(server, "i  ");
-    send_line(server, tprint("iHostname        : %", server_host));
-    send_line(server, tprint("iRequests handled: %", stat_requests));
-    send_line(server, tprint("iBytes sent      : %", stat_bytes_sent));
-    send_line(server, tprint("iBytes received  : %", stat_bytes_received));
-    send_line(server, tprint("iMaps sent       : %", stat_maps_served));
-    send_line(server, tprint("iFiles sent      : %", stat_files_served));
+    send_line(server, TYPE_INFO, line="    /\\/\\   __ _ _ __ __ _ ");
+    send_line(server, TYPE_INFO, line="   /    \\ / _` | '__/ _` |");
+    send_line(server, TYPE_INFO, line="  / /\\/\\ \\ (_| | | | (_| |");
+    send_line(server, TYPE_INFO, line="  \\/    \\/\\__,_|_|  \\__,_|");
+    send_line(server, TYPE_INFO, line=" % Gopher Server v%", SERVER_NAME, SERVER_VERSION);
+    send_line(server, TYPE_INFO, line="  ");
+    send_line(server, TYPE_INFO, line="  ");
+    send_line(server, TYPE_INFO, line="Hostname        : %", server_host);
+    send_line(server, TYPE_INFO, line="Requests handled: %", stat_requests);
+    send_line(server, TYPE_INFO, line="Bytes sent      : %", stat_bytes_sent);
+    send_line(server, TYPE_INFO, line="Bytes received  : %", stat_bytes_received);
+    send_line(server, TYPE_INFO, line="Maps sent       : %", stat_maps_served);
+    send_line(server, TYPE_INFO, line="Files sent      : %", stat_files_served);
 }
 
 guess_filetype :: (using server: *GopherServer) -> string {
@@ -366,19 +373,19 @@ guess_filetype :: (using server: *GopherServer) -> string {
     ret := stat(temp_c_string(req_realpath), *stats);
     if S_ISDIR(stats.st_mode) { return TYPE_MENU; }
     // Check other types:
-    find_in_end(TYPE_TEXT, {:string: "txt", "jai", "pl", "py", "sh", "tcl", "c", "cpp", "h", "log", "conf", "php", "php3"});
-    find_in_end(TYPE_MENU, {:string: "map", "menu"});
+    find_in_end(TYPE_TEXT,   {:string: "txt", "jai", "pl", "py", "sh", "tcl", "c", "cpp", "h", "log", "conf", "php", "php3"});
+    find_in_end(TYPE_MENU,   {:string: "map", "menu"});
     find_in_end(TYPE_MACBIN, {:string: "hqx"});
-    find_in_end(TYPE_GZIP, {:string: "Z", "gz", "tgz", "tar", "zip", "bz2", "rar", "sea"});
-    find_in_end(TYPE_QUERY, {:string: "q", "qry"});
+    find_in_end(TYPE_GZIP,   {:string: "Z", "gz", "tgz", "tar", "zip", "bz2", "rar", "sea"});
+    find_in_end(TYPE_QUERY,  {:string: "q", "qry"});
     find_in_end(TYPE_BINARY, {:string: "iso", "so", "o", "rtf", "ttf", "bin", "exe"});
-    find_in_end(TYPE_GIF, {:string: "gif"});
-    find_in_end(TYPE_HTML, {:string: "html", "htm", "xhtml", "css", "rss", "xml", "rdf"});
-    find_in_end(TYPE_IMAGE, {:string: "jpg", "jpeg", "png", "bmp", "svg", "tif", "tiff", "ico", "xbm", "xpm", "pcx"});
-    find_in_end(TYPE_MIME, {:string: "mbox"});
-    find_in_end(TYPE_DOC, {:string: "pdf", "ps", "doc", "ppt", "xls", "xlsx", "docx", "pptx", "ods", "odp", "odt"});
-    find_in_end(TYPE_SOUND, {:string: "mp3", "wav", "wma", "flac", "ogg", "aiff", "aac"});
-    find_in_end(TYPE_VIDEO, {:string: "avi", "mp4", "mpg", "mov", "qt", "ogv", "webm", "m4v", "mpv"});
+    find_in_end(TYPE_GIF,    {:string: "gif"});
+    find_in_end(TYPE_HTML,   {:string: "html", "htm", "xhtml", "css", "rss", "xml", "rdf"});
+    find_in_end(TYPE_IMAGE,  {:string: "jpg", "jpeg", "png", "bmp", "svg", "tif", "tiff", "ico", "xbm", "xpm", "pcx"});
+    find_in_end(TYPE_MIME,   {:string: "mbox"});
+    find_in_end(TYPE_DOC,    {:string: "pdf", "ps", "doc", "ppt", "xls", "xlsx", "docx", "pptx", "ods", "odp", "odt"});
+    find_in_end(TYPE_SOUND,  {:string: "mp3", "wav", "wma", "flac", "ogg", "aiff", "aac"});
+    find_in_end(TYPE_VIDEO,  {:string: "avi", "mp4", "mpg", "mov", "qt", "ogv", "webm", "m4v", "mpv"});
     notice("Not sure what % is.", req_selector);
     return default_filetype;
 }
@@ -391,9 +398,6 @@ url_redirect :: (using server: *GopherServer) {
        !begins_with(req_selector, "irc://") {
         send_error(server, "Unknown protocol on HTTP redirect.");
         return;
-    }
-    wt :: (str: string, args: ..Any) #expand {
-        `stat_bytes_sent += write(`client_socket, str, ..args);
     }
 
 	wt("<html>\n<head>\n");
@@ -461,10 +465,6 @@ handle_request :: (using server: *GopherServer) {
     }
 }
 
-new_client :: (using server: *GopherServer) {
-    req_protocol = .PROTO_GOPHER;
-}
-
 start_server :: (using server: *GopherServer) {
     server_root = trim_right(server_root, "/");
     defer free(server_root);
@@ -485,11 +485,10 @@ start_server :: (using server: *GopherServer) {
 
     if listen(server_socket, SERVER_NUM_CONNECTIONS) < 0 error("Error listening.");
     defer close(server_socket);
-
     notice("Server running on %:%.", server.server_listen, server.server_port);
 
     while true {
-        new_client(server);
+        req_protocol = .PROTO_GOPHER;
         client_socket, address := accept(server_socket);
         server.client_socket = client_socket;
         notice("Client connected from %", to_string(address));
