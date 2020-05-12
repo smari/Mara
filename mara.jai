@@ -10,13 +10,13 @@
 
 #load "utils.jai";
 
-SERVER_NAME     :: "Mara";
-SERVER_VERSION  :: "0.0.1";
+SERVER_NAME            :: "Mara";
+SERVER_VERSION         :: "0.0.1";
 SERVER_NUM_CONNECTIONS :: 5;
 
-TRIM_CHARS      :: " \t\r\n";
-PASSWD_MIN_UID  :: 100;
-BUF_MAX :: 1000;
+WHITESPACE_CHARS       :: " \t\r\n";
+PASSWD_MIN_UID         :: 100;
+BUF_MAX                :: 1000;
 
 TYPE_TEXT   :: "0";
 TYPE_MENU   :: "1";
@@ -209,7 +209,7 @@ send_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
 
     server.stat_maps_served += 1;
     for line:lines {
-        trim(line, TRIM_CHARS);
+        trim(line, WHITESPACE_CHARS);
         if line.count == 0 continue;
         type := line; type.count = 1;
         name := line; advance(*name);
@@ -446,7 +446,7 @@ start_server :: (using server: *GopherServer) {
 
         request : [BUF_MAX]u8;
         server.stat_bytes_received += read(client_socket, *request, BUF_MAX);
-        server.req_selector = trim(to_string(request), TRIM_CHARS);
+        server.req_selector = trim(to_string(request), WHITESPACE_CHARS);
         server.stat_requests += 1;
         handle_request(server);
 
