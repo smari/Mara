@@ -21,10 +21,11 @@ This is a Terrible Idea, to hack together a Gopher server. Done on 2020-05-11.
 
  - [ ] Make Gopher server multi-threaded
  - [ ] Automatic menu making if no gophermap
+ - [ ] Fall back from gophermaps to gophertags.
  - [ ] Support Gopher item type 7
  - [x] Support basic HTTP queries
  - [x] Support hURL: redirects
- - [ ] Support headers and footers
+ - [x] Support headers and footers
  - [ ] Support dates
  - [ ] Support magic
  - [ ] Support vhosts
@@ -32,7 +33,8 @@ This is a Terrible Idea, to hack together a Gopher server. Done on 2020-05-11.
  - [ ] Support proxying
  - [ ] Support executable gophermaps
  - [x] Support personal spaces
- - [ ] Handle server names better
+ - [x] Handle server names better
  - [ ] Report types better
+ - [ ] Capture SIGINT and SIGPIPE at least.
  - [ ] Be feature-equivalent to Gophernicus
  - [ ] Check for memory leaks
