@@ -47,13 +47,7 @@ GopherServer :: struct {
 
     req_selector:        string;
     req_realpath:        string;
-    req_query_string:    string;
-    req_search:          string;
-    req_referrer:        string;
-    req_local_addr:      string;
-    req_remote_addr:     string;
     req_filetype:        string;
-    req_filesize:        int;
     req_protocol:        GopherProtocol;
 
     client_socket:       s32;
@@ -63,7 +57,7 @@ GopherServer :: struct {
 
     server_description:  string = "";
     server_location:     string = "";
-    server_platform:     string = "Linux";
+    server_platform:     string = "";
     server_admin:        string = "";
     server_root:         string = "gopherroot/";
     server_host:         string;
