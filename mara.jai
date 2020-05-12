@@ -63,6 +63,7 @@ GopherServer :: struct {
     server_host:         string;
     server_listen:       string = "0.0.0.0";
     server_port:         u16    = 70;
+    server_shutdown:     bool   = false;
 
     session_timeout:     int    = 1600;
 
@@ -72,8 +73,8 @@ GopherServer :: struct {
     user_dir:            string = "public_gopher";
 
     opt_parent:          bool   = false; // Unimplemented
-    opt_header:          bool   = false; // Unimplemented
-    opt_footer:          bool   = false; // Unimplemented
+    opt_header:          bool   = true;
+    opt_footer:          bool   = true;
     opt_date:            bool   = false; // Unimplemented
     opt_syslog:          bool   = false; // Unimplemented
     opt_magic:           bool   = true;
@@ -500,6 +501,18 @@ start_server :: (using server: *GopherServer) {
         handle_request(server);
 
         close(server.client_socket);
+        if server_shutdown break;
+    }
+}
+
+get_system_info :: (server: *GopherServer) {
+    #if OS_LINUX || OS_MACOS {
+        name : utsname;
+        uname(*name);
+        server.server_platform = to_string(name.sysname.data);
+    }
+    #if OS_WINDOWS {
+        server.server_platform = "Windows";
     }
 }
 
@@ -517,19 +530,22 @@ main :: () {
         if idx+1 >= args.count { error("Parameters missing."); }
         return idx+1, args[idx+1];
     }
-
     while idx < args.count {
         if args[idx] == {
             case "-v"; version(); exit(0);
             case "-h"; idx, server.server_host = get_param(args, idx);
             case "-p"; idx, tmp = get_param(args, idx); server.server_port = parse_int(*tmp, u16);
             case "-r"; idx, server.server_root = get_param(args, idx);
+            case "-L"; idx, server.server_listen = get_param(args, idx);
+            case "-nh"; server.opt_header = false;
+            case "-nf"; server.opt_footer = false;
             case "-nr"; server.opt_root = false;
             case "-nc"; server.opt_magic = false;
             case "-na"; server.opt_caps = false;
             case "-nx"; server.opt_exec = false;
             case "-nu"; server.opt_personal_spaces = false;
             case "-nS"; server.opt_stats = false;
+            case "-nH"; server.opt_http_requests = false;
             case "-d"; server.debug = true;
             case; print("Unknown parameter %", args[idx]);
         }
@@ -538,7 +554,6 @@ main :: () {
 
     if !file_exists(server.server_root) { error("Server root % does not exist.", server.server_root); }
     if server.opt_root && getuid() == 0 { error("Refusing to run as root."); }
-    notice("Serving from %", server.server_root);
-
+    get_system_info(*server);
     start_server(*server);
 }
