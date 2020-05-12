@@ -87,7 +87,7 @@ GopherServer :: struct {
     opt_shm:             bool   = false; // Unimplemented
     opt_root:            bool   = true;
     opt_proxy:           bool   = false; // Unimplemented
-    opt_exec:            bool   = false;
+    opt_exec:            bool   = true;
     opt_personal_spaces: bool   = true;
     opt_http_requests:   bool   = true;
     debug:               bool   = true;
@@ -239,10 +239,10 @@ send_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
 
     stats: stat_t;
     ret := stat(temp_c_string(server.req_realpath), *stats);
-    if stats.st_mode & S_IXOTH && server.opt_exec {
+    /* if stats.st_mode & S_IXOTH && server.opt_exec {
         // Our gophermap is an executable!
-        error("No support for executable gophermaps yet.");
-    }
+        send_error("No support for executable gophermaps yet.");
+    }*/
 
     buf, success := read_entire_file(gophermap);
     notice("Client requested index. Reading from %", gophermap);
