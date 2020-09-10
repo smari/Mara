@@ -324,19 +324,19 @@ guess_filetype :: (using server: *GopherServer) -> string {
     ret := stat(temp_c_string(req_realpath), *stats);
     if S_ISDIR(stats.st_mode) { return TYPE_MENU; }
     // Check other types:
-    find_in_end(TYPE_TEXT,   {:string: "txt", "jai", "pl", "py", "sh", "tcl", "c", "cpp", "h", "log", "conf", "php", "php3"});
-    find_in_end(TYPE_MENU,   {:string: "map", "menu"});
-    find_in_end(TYPE_MACBIN, {:string: "hqx"});
-    find_in_end(TYPE_GZIP,   {:string: "Z", "gz", "tgz", "tar", "zip", "bz2", "rar", "sea"});
-    find_in_end(TYPE_QUERY,  {:string: "q", "qry"});
-    find_in_end(TYPE_BINARY, {:string: "iso", "so", "o", "rtf", "ttf", "bin", "exe"});
-    find_in_end(TYPE_GIF,    {:string: "gif"});
-    find_in_end(TYPE_HTML,   {:string: "html", "htm", "xhtml", "css", "rss", "xml", "rdf"});
-    find_in_end(TYPE_IMAGE,  {:string: "jpg", "jpeg", "png", "bmp", "svg", "tif", "tiff", "ico", "xbm", "xpm", "pcx"});
-    find_in_end(TYPE_MIME,   {:string: "mbox"});
-    find_in_end(TYPE_DOC,    {:string: "pdf", "ps", "doc", "ppt", "xls", "xlsx", "docx", "pptx", "ods", "odp", "odt"});
-    find_in_end(TYPE_SOUND,  {:string: "mp3", "wav", "wma", "flac", "ogg", "aiff", "aac"});
-    find_in_end(TYPE_VIDEO,  {:string: "avi", "mp4", "mpg", "mov", "qt", "ogv", "webm", "m4v", "mpv"});
+    find_in_end(TYPE_TEXT,   .["txt", "jai", "pl", "py", "sh", "tcl", "c", "cpp", "h", "log", "conf", "php", "php3"]);
+    find_in_end(TYPE_MENU,   .["map", "menu"]);
+    find_in_end(TYPE_MACBIN, .["hqx"]);
+    find_in_end(TYPE_GZIP,   .["Z", "gz", "tgz", "tar", "zip", "bz2", "rar", "sea"]);
+    find_in_end(TYPE_QUERY,  .["q", "qry"]);
+    find_in_end(TYPE_BINARY, .["iso", "so", "o", "rtf", "ttf", "bin", "exe"]);
+    find_in_end(TYPE_GIF,    .["gif"]);
+    find_in_end(TYPE_HTML,   .["html", "htm", "xhtml", "css", "rss", "xml", "rdf"]);
+    find_in_end(TYPE_IMAGE,  .["jpg", "jpeg", "png", "bmp", "svg", "tif", "tiff", "ico", "xbm", "xpm", "pcx"]);
+    find_in_end(TYPE_MIME,   .["mbox"]);
+    find_in_end(TYPE_DOC,    .["pdf", "ps", "doc", "ppt", "xls", "xlsx", "docx", "pptx", "ods", "odp", "odt"]);
+    find_in_end(TYPE_SOUND,  .["mp3", "wav", "wma", "flac", "ogg", "aiff", "aac"]);
+    find_in_end(TYPE_VIDEO,  .["avi", "mp4", "mpg", "mov", "qt", "ogv", "webm", "m4v", "mpv"]);
     notice("Not sure what % is.", req_selector);
     return default_filetype;
 }
@@ -456,12 +456,12 @@ start_server :: (using server: *GopherServer) {
 }
 
 get_system_info :: (server: *GopherServer) {
-    #if OS_LINUX || OS_MACOSX {
+    #if OS == .LINUX || OS == .MACOS {
         name : utsname;
         uname(*name);
         server.server_platform = to_string(name.sysname.data);
     }
-    #if OS_WINDOWS {
+    #if OS == .WINDOWS {
         server.server_platform = "Windows";
     }
 }
