@@ -482,11 +482,11 @@ main :: () {
     }
     while idx < args.count {
         if args[idx] == {
-            case "-v"; version(); exit(0);
-            case "-h"; idx, server.server_host = get_param(args, idx);
-            case "-p"; idx, tmp = get_param(args, idx); server.server_port = parse_int(*tmp, u16);
-            case "-r"; idx, server.server_root = get_param(args, idx);
-            case "-L"; idx, server.server_listen = get_param(args, idx);
+            case "-v" ; version(); exit(0);
+            case "-h" ; idx, server.server_host = get_param(args, idx);
+            case "-p" ; idx, tmp = get_param(args, idx); server.server_port = parse_int(*tmp, u16);
+            case "-r" ; idx, server.server_root = get_param(args, idx);
+            case "-L" ; idx, server.server_listen = get_param(args, idx);
             case "-nh"; server.opt_header = false;
             case "-nf"; server.opt_footer = false;
             case "-nr"; server.opt_root = false;
@@ -496,7 +496,7 @@ main :: () {
             case "-nu"; server.opt_personal_spaces = false;
             case "-nS"; server.opt_stats = false;
             case "-nH"; server.opt_http_requests = false;
-            case "-d"; server.debug = true;
+            case "-d" ; server.debug = true;
             case; print("Unknown parameter %", args[idx]);
         }
         idx += 1;

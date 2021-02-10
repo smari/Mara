@@ -4,15 +4,6 @@
 
 // File/socket tools:
 
-write :: (fd: s32, buf: string, args: ..Any) -> s64 {
-    tmp := tprint(buf, ..args);
-    return write(fd, tmp.data, xx tmp.count);
-}
-
-write :: (fd: s32, buf: string) -> s64 {
-    return write(fd, buf.data, xx buf.count);
-}
-
 read_line :: (fd: s32) -> string {
     buf : string;
     buf.data = alloc(BUF_MAX);
