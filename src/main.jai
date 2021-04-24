@@ -11,7 +11,7 @@
 #load "utils.jai";
 
 SERVER_NAME            :: "Mara";
-SERVER_VERSION         :: "0.0.1";
+SERVER_VERSION         :: "0.0.2";
 SERVER_NUM_CONNECTIONS :: 5;
 
 WHITESPACE_CHARS       :: " \t\r\n\0";
@@ -35,11 +35,6 @@ TYPE_SOUND  :: "s";
 TYPE_VIDEO  :: ";";
 TYPE_TITLE  :: "!";
 
-GopherProtocol :: enum {
-    PROTO_GOPHER;
-    PROTO_HTTP;
-}
-
 GopherServer :: struct {
     stat_requests:       int;
     stat_bytes_sent:     int;
@@ -50,7 +45,6 @@ GopherServer :: struct {
     req_selector:        string;
     req_realpath:        string;
     req_filetype:        string;
-    req_protocol:        GopherProtocol;
 
     client_socket:       s32;
 
@@ -59,7 +53,6 @@ GopherServer :: struct {
 
     server_description:  string = "";
     server_location:     string = "";
-    server_platform:     string = "";
     server_admin:        string = "";
     server_root:         string = "gopherroot/";
     server_host:         string = "localhost";
@@ -296,7 +289,7 @@ send_caps :: (using server: *GopherServer) {
     wt("\r\n");
     wt("ServerSoftware=%\r\n", SERVER_NAME);
     wt("ServerSoftwareVersion=%\r\n", SERVER_VERSION);
-    wt("ServerArchitecture=%\r\n", server_platform);
+    wt("ServerArchitecture=%\r\n", get_platform(server));
 	/* Optional keys */
 	if server_description wt("ServerDescription=%\r\n", server_description);
 	if server_location wt("ServerGeolocationString=%\r\n", server_location);
@@ -385,7 +378,6 @@ handle_request :: (using server: *GopherServer) {
     }
 
     if opt_http_requests && (begins_with(req_selector, "GET ") || begins_with(req_selector, "POST ")) {
-        req_protocol = .PROTO_HTTP;
         // TODO: When lots of things break, it'll be because this API became sane:
         req_selector = find_character_from_left_v2(req_selector, #char " ");
         req_selector = find_character_from_left(req_selector, #char " ");
@@ -444,7 +436,6 @@ start_server :: (using server: *GopherServer) {
     notice("Server running on %:%.", server.server_listen, server.server_port);
 
     while true {
-        req_protocol = .PROTO_GOPHER;
         client_socket, address := accept(server_socket);
         server.client_socket = client_socket;
         notice("Client connected from %", to_string(address));
@@ -460,14 +451,14 @@ start_server :: (using server: *GopherServer) {
     }
 }
 
-get_system_info :: (server: *GopherServer) {
+get_platform :: (server: *GopherServer) -> string {
     #if OS == .LINUX || OS == .MACOS {
         name : utsname;
         uname(*name);
-        server.server_platform = to_string(name.sysname.data);
+        return to_string(name.sysname.data);
     }
     #if OS == .WINDOWS {
-        server.server_platform = "Windows";
+        return "Windows";
     }
 }
 
@@ -507,8 +498,8 @@ main :: () {
         idx += 1;
     }
 
+    if server.opt_exec { error("Executable gophermaps not supported."); }
     if !file_exists(server.server_root) { error("Server root % does not exist.", server.server_root); }
     if server.opt_root && getuid() == 0 { error("Refusing to run as root."); }
-    get_system_info(*server);
     start_server(*server);
 }
