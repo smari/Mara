@@ -6,7 +6,10 @@
     set_working_directory(#filepath);
     build_options := get_build_options();
     build_options.output_type = .NO_OUTPUT;
-    array_add(*build_options.modules_search_path_array, "lib/");
+    imports : [..]string;
+    for build_options.import_path array_add(*imports, it);
+    array_add(*imports, "lib/");
+    build_options.import_path = imports;
     set_build_options(build_options);
 
     debug := true;

@@ -14,7 +14,7 @@ SERVER_NAME            :: "Mara";
 SERVER_VERSION         :: "0.0.1";
 SERVER_NUM_CONNECTIONS :: 5;
 
-WHITESPACE_CHARS       :: " \t\r\n";
+WHITESPACE_CHARS       :: " \t\r\n\0";
 PASSWD_MIN_UID         :: 100;
 BUF_MAX                :: 1000;
 
@@ -62,7 +62,7 @@ GopherServer :: struct {
     server_platform:     string = "";
     server_admin:        string = "";
     server_root:         string = "gopherroot/";
-    server_host:         string;
+    server_host:         string = "localhost";
     server_listen:       string = "0.0.0.0";
     server_port:         u16    = 70;
     server_shutdown:     bool   = false;
@@ -74,6 +74,7 @@ GopherServer :: struct {
     tag_file:            string = "gophertag";
     user_dir:            string = "public_gopher";
 
+    // TODO: Make this into an enum_flags
     opt_parent:          bool   = false; // Unimplemented
     opt_header:          bool   = true;
     opt_footer:          bool   = true;
@@ -101,6 +102,7 @@ wt :: (str: string, args: ..Any) #expand {
     // A useful macro we use in a few places where we're dumping irregular text.
     `stat_bytes_sent += write(`client_socket, str, ..args);
 }
+
 
 User :: struct {
     username:   string;
@@ -195,19 +197,20 @@ send_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
         send_error("No support for executable gophermaps yet.");
     }*/
 
-    buf, success := read_entire_file(gophermap);
     notice("Client requested index. Reading from %", gophermap);
+    buf, success := read_entire_file(gophermap);
 
-    defer free(buf);
     if !success {
-        notice("Error reading file %: %", gophermap, get_error());
-        send_error(server, "Internal error.");
+        notice("Error reading gophermap %: %", gophermap, get_error());
+        // send_error(server, "Internal error.");
         return;
     }
+    defer free(buf);
     lines = split(buf, "\n");
     defer array_reset(*lines);
 
     server.stat_maps_served += 1;
+    print("HOST: %\n", server.server_host);
     for line:lines {
         trim(line, WHITESPACE_CHARS);
         if line.count == 0 continue;
@@ -239,8 +242,10 @@ send_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
                 else                port = server.server_port;
 
                 if begins_with(selector, "/") || host != server.server_host || begins_with(selector, "URL:") {
+                    print("Absolute resource: %\n", selector);
                     server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3\t%4\t%5\r\n", type, name, selector, host, port);
                 } else { // Relative resource:
+                    print("Relative resource: %; host '%', port %\n", selector, host, port);
                     selector = trim_left(selector, "/");
                     server.stat_bytes_sent += write(server.client_socket, "%1%2\t%3/%4\t%5\t%6\r\n", type, name, server.req_selector, selector, host, port);
                 }
@@ -316,7 +321,7 @@ send_stats :: (using server: *GopherServer) {
 
 guess_filetype :: (using server: *GopherServer) -> string {
     find_in_end :: (returns: string, needles: []string) #expand {
-        for n:needles { if ends_with(`req_selector, n) return returns; }
+        for n:needles { if ends_with(`req_selector, n) return; }
     }
     // Check if menu:
     if ends_with(req_selector, "/") { return TYPE_MENU; }
@@ -409,7 +414,7 @@ handle_request :: (using server: *GopherServer) {
     if !file_exists(req_realpath) { send_error(server, "File not found"); return; }
     if req_filetype == {
         case TYPE_MENU;
-            gophermap := join(server.req_realpath, "/", server.map_file);
+            gophermap := join(req_realpath, "/", map_file);
             send_gophermap(server, gophermap);
             free(gophermap);
         case; send_file(server);
