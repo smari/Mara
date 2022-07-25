@@ -3,18 +3,23 @@
 #import "String";
 
 #run {
+    w := compiler_create_workspace("Jai WASM");
+    if !w {
+        print("Error: Could not create a workspace\n");
+        exit(1);
+    }
+
     set_working_directory(#filepath);
-    build_options := get_build_options();
+    build_options := get_build_options(w);
     build_options.output_type = .NO_OUTPUT;
     imports : [..]string;
     for build_options.import_path array_add(*imports, it);
     array_add(*imports, "lib/");
     build_options.import_path = imports;
-    set_build_options(build_options);
 
     debug := true;
 
-    args := compiler_get_command_line_arguments();
+    args := build_options.compile_time_command_line;
 
     for arg, index : args {
         print("    [%] '%'\n", index, arg);
@@ -39,9 +44,6 @@
     } else {
         mode = "DEBUG :: false;";
     }
-
-    // Workspace to compile server
-    w := compiler_create_workspace();
 
     if !w {
         print("[build.jai] 'compiler_create_workspace' failed\n");

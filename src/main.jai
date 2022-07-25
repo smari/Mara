@@ -81,9 +81,9 @@ GopherServer :: struct {
     opt_status:          bool   = false; // Unimplemented
     opt_stats:           bool   = true;
     opt_shm:             bool   = false; // Unimplemented
-    opt_root:            bool   = true;
+    opt_root:            bool   = true;  // Whether to allow root
     opt_proxy:           bool   = false; // Unimplemented
-    opt_exec:            bool   = true;
+    opt_exec:            bool   = false;
     opt_personal_spaces: bool   = true;
     opt_http_requests:   bool   = true;
     debug:               bool   = true;
@@ -244,6 +244,25 @@ send_gophermap :: (server: *GopherServer, gophermap: string, depth := 0) {
     }
 }
 
+
+find_character_from_right :: (str: string, char: u8) -> string {
+    idx := find_index_from_right(str, char);
+    s := str;
+    s.data += idx;
+    s.count -= idx;
+    return s;
+}
+
+
+find_character_from_left :: (str: string, char: u8) -> string {
+    idx := find_index_from_left(str, char);
+    s := str;
+    s.data += idx;
+    s.count -= idx;
+    return s;
+}
+
+
 send_file :: (server: *GopherServer) {
     file_name := find_character_from_right(server.req_realpath, #char "/");
     if file_name.count == 0 {
@@ -376,7 +395,7 @@ handle_request :: (using server: *GopherServer) {
 
     if opt_http_requests && (begins_with(req_selector, "GET ") || begins_with(req_selector, "POST ")) {
         // TODO: When lots of things break, it'll be because this API became sane:
-        req_selector = find_character_from_left_v2(req_selector, #char " ");
+        req_selector = find_character_from_left(req_selector, #char " ");
         req_selector = find_character_from_left(req_selector, #char " ");
         notice("Got HTTP request.");
     }
@@ -387,10 +406,13 @@ handle_request :: (using server: *GopherServer) {
         path := req_selector;
         advance(*path, 2);
         username := find_character_from_left(path, #char "/");
-        path = find_character_from_left_v2(path, #char "/");
+        path = find_character_from_left(path, #char "/");
         pwd := getpwnam(temp_c_string(username));
         // Unlike Gophernicus, we won't leak info on user existence.
-        if !pwd || pwd.pw_uid < PASSWD_MIN_UID { send_error(server, "File not found"); return; }
+        if !pwd || pwd.pw_uid < PASSWD_MIN_UID { 
+            send_error(server, "File not found"); 
+            return;
+        }
 
         req_realpath = join(to_string(pwd.pw_dir), "/", user_dir, path);
         notice("Resolving % to %", req_selector, req_realpath);
@@ -497,6 +519,6 @@ main :: () {
 
     if server.opt_exec { error("Executable gophermaps not supported."); }
     if !file_exists(server.server_root) { error("Server root % does not exist.", server.server_root); }
-    if server.opt_root && getuid() == 0 { error("Refusing to run as root."); }
+    if !server.opt_root && getuid() == 0 { error("Refusing to run as root."); }
     start_server(*server);
 }
