@@ -3,7 +3,9 @@
 #import "String";
 
 #run {
-    w := compiler_create_workspace("Jai WASM");
+    set_build_options_dc(.{do_output=false});
+
+    w := compiler_create_workspace("Mara build");
     if !w {
         print("Error: Could not create a workspace\n");
         exit(1);
@@ -11,14 +13,12 @@
 
     set_working_directory(#filepath);
     build_options := get_build_options(w);
-    build_options.output_type = .NO_OUTPUT;
     imports : [..]string;
     for build_options.import_path array_add(*imports, it);
     array_add(*imports, "lib/");
     build_options.import_path = imports;
 
     debug := true;
-
     args := build_options.compile_time_command_line;
 
     for arg, index : args {
@@ -59,9 +59,7 @@
 
     add_build_file("src/main.jai", w);
     add_build_string(mode, w);
-    // ---
 
-    // Compile! Detect Jai's compilation messages during the process.
     while true {
         message := compiler_wait_for_message();
 
@@ -70,7 +68,7 @@
         }
 
         if message.kind == .COMPLETE {
-            break; // Done compiling.
+            break;
         }
     }
 
